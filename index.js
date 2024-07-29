@@ -6,74 +6,65 @@ import chalk from "chalk";
 import boxen from "boxen";
 
 const path = "./data.json";
+const git = simpleGit();
 
+// 📌 Display UI Helper
 const displayUI = (message, type = "info") => {
-  const colors = {
-    info: "blue",
-    success: "green",
-    warning: "yellow",
-    error: "red",
-  };
-
-  const boxenOptions = {
-    padding: 1,
-    margin: 1,
-    borderStyle: "round",
-    borderColor: colors[type],
-    backgroundColor: "#555555",
-  };
-  
-  console.log(boxen(chalk[colors[type]](message), boxenOptions));
+  const colors = { info: "blue", success: "green", warning: "yellow", error: "red" };
+  console.log(
+    boxen(chalk[colors[type]](message), {
+      padding: 1,
+      margin: 1,
+      borderStyle: "round",
+      borderColor: colors[type],
+    })
+  );
 };
 
-const markCommit = (x, y) => {
-  const date = moment()
-    .subtract(1, "y")
-    .add(1, "d")
-    .add(x, "w")
-    .add(y, "d")
-    .format();
+// 📌 Generate Commit Data
+const generateCommitData = (n) => {
+  return Array.from({ length: n }).map((_, i) => {
+    const x = random.int(0, 54);
+    const y = random.int(0, 6);
+    const date = moment().subtract(1, "y").add(1, "d").add(x, "w").add(y, "d").format();
 
-  const data = {
-    date: date,
-    commit: {
-      message: `Commit on ${date}`,
-      author: "reniandin94@gmail.com",
-      branch: "main",
-    },
-  };
-
-  jsonfile.writeFile(path, data, () => {
-    simpleGit().add([path]).commit(date, { "--date": date }).push();
-    displayUI(`📑 Commit created on: ${date}`, "success");
+    return {
+      date: date,
+      commit: {
+        message: `Commit #${i + 1} on ${date}`,
+        author: "reniandin94@gmail.com",
+        branch: "main",
+      },
+    };
   });
 };
 
-const makeCommits = (n) => {
-  if (n === 0) {
+// 📌 Execute Batch Commit Process
+const makeCommits = async (n) => {
+  try {
+    const commits = generateCommitData(n);
+    
+    // Simpan semua perubahan di JSON tanpa delay
+    await jsonfile.writeFile(path, commits, { spaces: 2 });
+
+    // Tambahkan semua perubahan dan buat commit secara batch
+    await git.add([path]);
+    
+    await Promise.all(
+      commits.map(({ date, commit }) =>
+        git.commit(commit.message, { "--date": date })
+      )
+    );
+
+    // Push setelah semua commit selesai
+    await git.push();
     displayUI("🎉 All commits have been created and pushed!", "success");
-    return simpleGit().push();
+  } catch (error) {
+    displayUI(`❌ Error: ${error.message}`, "error");
   }
-
-  const x = random.int(0, 54);
-  const y = random.int(0, 6);
-  const date = moment().subtract(1, "y").add(1, "d").add(x, "w").add(y, "d").format();
-
-  const data = {
-    date: date,
-    commit: {
-      message: `Commit #${n} on ${date}`,
-      author: "reniandin94@gmail.com",
-      branch: "main",
-    },
-  };
-
-  displayUI(`✨ Creating commit #${n} on: ${date}`, "info");
-  jsonfile.writeFile(path, data, () => {
-    simpleGit().add([path]).commit(date, { "--date": date }, makeCommits.bind(this, --n));
-  });
 };
 
+// 🔥 Start Commit Process
 displayUI(
   "🚀 Starting the automated commit process...\n" +
     chalk.yellow("Project: Anjay\n") +
@@ -81,5 +72,4 @@ displayUI(
   "info"
 );
 
-//============ { CUSTOM COMMITS } ============\\
-makeCommits(100);
+makeCommits(50000);
